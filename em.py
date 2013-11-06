@@ -22,14 +22,7 @@ import re
 import string
 import sys
 import types
-
-try:
-    # The equivalent of import cStringIO as StringIO.
-    import io
-    StringIO = cStringIO
-    del cStringIO
-except ImportError:
-    import io
+import io
 
 # Some basic defaults.
 FAILURE_CODE = 1
