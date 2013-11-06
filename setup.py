@@ -23,7 +23,7 @@ LONG_DESCRIPTION = """\
 
 setup(
     name="empy",
-    version="3.1",
+    version="3.3",
     author="Erik Max Francis", 
     author_email="software@alcyone.com",
     url="http://www.alcyone.com/software/empy",
