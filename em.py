@@ -19,7 +19,6 @@ import copy
 import getopt
 import os
 import re
-import string
 import sys
 import types
 import io
@@ -288,9 +287,9 @@ class MetaError(Exception):
         self.exc = exc
 
     def __str__(self):
-        backtrace = [str(x) for x in self.contexts]
+        backtrace = map(lambda x: str(x), self.contexts)
         return "%s: %s (%s)" % (self.exc.__class__, self.exc, \
-                                (string.join(backtrace, ', ')))
+                                (str.join(backtrace, ', ')))
 
 
 class Subsystem:
@@ -308,7 +307,7 @@ class Subsystem:
                    inputErrors=None, outputErrors=None):
         self.useUnicode = True
         try:
-            str
+            unicode
             import codecs
         except (NameError, ImportError):
             raise SubsystemError("Unicode subsystem unavailable")
@@ -386,7 +385,7 @@ class Stack:
 
     def filter(self, function):
         """Filter the elements of the stack through the function."""
-        self.data = list(filter(function, self.data))
+        self.data = self.data = list(filter(function, self.data))
 
     def purge(self):
         """Purge the stack."""
@@ -403,7 +402,7 @@ class Stack:
     def __repr__(self):
         return '<%s instance at 0x%x [%s]>' % \
                (self.__class__, id(self), \
-                string.join(list(map(repr, self.data)), ', '))
+                str.join(map(repr, self.data), ', '))
 
 
 class AbstractFile:
@@ -539,7 +538,7 @@ class Stream:
              type(shortcut) is types.BuiltinMethodType or \
              type(shortcut) is types.LambdaType:
             return FunctionFilter(shortcut)
-        elif type(shortcut) is bytes:
+        elif type(shortcut) is str:#str was bytes
             return StringFilter(filter)
         elif type(shortcut) is dict:
             raise NotImplementedError("mapping filters not yet supported")
@@ -838,13 +837,13 @@ class StringFilter(Filter):
     filters any incoming data through it."""
 
     def __init__(self, table):
-        if not (type(table) == bytes and len(table) == 256):
+        if not (type(table) == str and len(table) == 256):#str was bytes
             raise FilterError("table must be 256-character string")
         Filter.__init__(self)
         self.table = table
 
     def write(self, data):
-        self.sink.write(string.translate(data, self.table))
+        self.sink.write(str.translate(data, self.table))
 
 class BufferedFilter(Filter):
 
@@ -891,7 +890,7 @@ class LineBufferedFilter(BufferedFilter):
 
     def write(self, data):
         BufferedFilter.write(self, data)
-        chunks = string.split(self.buffer, '\n')
+        chunks = str.split(self.buffer, '\n')
         for chunk in chunks[:-1]:
             self.sink.write(chunk + '\n')
         self.buffer = chunks[-1]
@@ -976,7 +975,7 @@ class Hook:
     def beforeInclude(self, name, file, locals): pass
     def afterInclude(self): pass
 
-    def beforeExpand(self, string, locals): pass
+    def beforeExpand(self, str, locals): pass
     def afterExpand(self, result): pass
 
     def beforeFile(self, name, file, locals): pass
@@ -985,13 +984,13 @@ class Hook:
     def beforeBinary(self, name, file, chunkSize, locals): pass
     def afterBinary(self): pass
 
-    def beforeString(self, name, string, locals): pass
+    def beforeString(self, name, str, locals): pass
     def afterString(self): pass
 
-    def beforeQuote(self, string): pass
+    def beforeQuote(self, str): pass
     def afterQuote(self, result): pass
 
-    def beforeEscape(self, string, more): pass
+    def beforeEscape(self, str, more): pass
     def afterEscape(self, result): pass
 
     def beforeControl(self, type, rest, locals): pass
@@ -1133,7 +1132,7 @@ class ContextNameToken(ExpansionToken):
     def scan(self, scanner):
         loc = scanner.find('\n')
         if loc >= 0:
-            self.name = string.strip(scanner.chop(loc, 1))
+            self.name = str.strip(scanner.chop(loc, 1))
         else:
             raise TransientParseError("context name expects newline")
 
@@ -1174,7 +1173,7 @@ class EscapeToken(ExpansionToken):
                 result = '\x08'
             elif code == 'd': # decimal code
                 decimalCode = scanner.chop(3)
-                result = chr(string.atoi(decimalCode, 10))
+                result = chr(str.atoi(decimalCode, 10))
             elif code == 'e': # ESC
                 result = '\x1b'
             elif code == 'f': # FF
@@ -1196,10 +1195,10 @@ class EscapeToken(ExpansionToken):
                     raise SubsystemError("unknown Unicode character name: %s" % name)
             elif code == 'o': # octal code
                 octalCode = scanner.chop(3)
-                result = chr(string.atoi(octalCode, 8))
+                result = chr(str.atoi(octalCode, 8))
             elif code == 'q': # quaternary code
                 quaternaryCode = scanner.chop(4)
-                result = chr(string.atoi(quaternaryCode, 4))
+                result = chr(str.atoi(quaternaryCode, 4))
             elif code == 'r': # CR
                 result = '\x0d'
             elif code in 's ': # SP
@@ -1209,20 +1208,20 @@ class EscapeToken(ExpansionToken):
             elif code in 'u': # Unicode 16-bit hex literal
                 theSubsystem.assertUnicode()
                 hexCode = scanner.chop(4)
-                result = chr(string.atoi(hexCode, 16))
+                result = chr(str.atoi(hexCode, 16))
             elif code in 'U': # Unicode 32-bit hex literal
                 theSubsystem.assertUnicode()
                 hexCode = scanner.chop(8)
-                result = chr(string.atoi(hexCode, 16))
+                result = chr(str.atoi(hexCode, 16))
             elif code == 'v': # VT
                 result = '\x0b'
             elif code == 'x': # hexadecimal code
                 hexCode = scanner.chop(2)
-                result = chr(string.atoi(hexCode, 16))
+                result = chr(str.atoi(hexCode, 16))
             elif code == 'z': # EOT
                 result = '\x04'
             elif code == '^': # control character
-                controlCode = string.upper(scanner.chop(1))
+                controlCode = str.upper(scanner.chop(1))
                 if controlCode >= '@' and controlCode <= '`':
                     result = chr(ord(controlCode) - ord('@'))
                 elif controlCode == '?':
@@ -1255,7 +1254,7 @@ class SignificatorToken(ExpansionToken):
             # Work around a subtle CPython-Jython difference by stripping
             # the string before splitting it: 'a '.split(None, 1) has two
             # elements in Jython 2.1).
-            fields = string.split(string.strip(line), None, 1)
+            fields = str.split(str.strip(line), None, 1)
             if len(fields) == 2 and fields[1] == '':
                 fields.pop()
             self.key = fields[0]
@@ -1268,7 +1267,7 @@ class SignificatorToken(ExpansionToken):
     def run(self, interpreter, locals):
         value = self.valueCode
         if value is not None:
-            value = interpreter.evaluate(string.strip(value), locals)
+            value = interpreter.evaluate(str.strip(value), locals)
         interpreter.significate(self.key, value)
 
     def string(self):
@@ -1416,7 +1415,7 @@ class CustomToken(ExpansionToken):
 class ControlToken(ExpansionToken):
 
     """A control token."""
-
+		
     PRIMARY_TYPES = ['if', 'for', 'while', 'try', 'def']
     SECONDARY_TYPES = ['elif', 'else', 'except', 'finally']
     TERTIARY_TYPES = ['continue', 'break']
@@ -1429,7 +1428,7 @@ class ControlToken(ExpansionToken):
         scanner.acquire()
         i = scanner.complex('[', ']', 0)
         self.contents = scanner.chop(i, 1)
-        fields = string.split(string.strip(self.contents), ' ', 1)
+        fields = str.split(str.strip(self.contents), ' ', 1)
         if len(fields) > 1:
             self.type, self.rest = fields
         else:
@@ -1604,7 +1603,7 @@ class ControlToken(ExpansionToken):
             token.run(interpreter, locals)
 
     def substring(self):
-        return string.join(list(map(str, self.subtokens)), '')
+        return str.join(map(str, self.subtokens), '')
 
     def string(self):
         if self.kind == 'primary':
@@ -1649,13 +1648,29 @@ class Scanner:
         self.lock = 0
 
     def __bool__(self): return self.pointer < len(self.buffer)
-    def __len__(self): return len(self.buffer) - self.pointer
-    def __getitem__(self, index): return self.buffer[self.pointer + index]
+    def __len__(self): return len(self.buffer) - self.pointer	
+    def __getitem__(self, index):
+        if isinstance(index, int):
+            return self.buffer[self.pointer + index]
+        elif isinstance(index, slice):
+            if (index.stop == None):
+                stop = len(self)
+            else:
+                stop = index.stop
+                if stop > len(self):
+                    stop = len(self)
+            if (index.start == None):
+                start = 0
+            else:
+                start = index.start
+            return self.buffer[self.pointer + start:self.pointer + stop]
+        else:
+            raise ParseError("getitem: index is neither a int nor a slice")
 
-    def __getslice__(self, start, stop):
-        if stop > len(self):
-            stop = len(self)
-        return self.buffer[self.pointer + start:self.pointer + stop]
+    #def __getslice__(self, start, stop):
+    #    if stop > len(self):
+    #        stop = len(self)
+    #    return self.buffer[self.pointer + start:self.pointer + stop]
 
     def advance(self, count=1):
         """Advance the pointer count characters."""
@@ -1751,9 +1766,9 @@ class Scanner:
     def find(self, sub, start=0, end=None):
         """Find the next occurrence of the character, or return -1."""
         if end is not None:
-            return string.find(self.rest(), sub, start, end)
+            return self.rest().find(sub, start, end)
         else:
-            return string.find(self.rest(), sub, start)
+            return self.rest().find(sub, start)
 
     def last(self, char, start=0, end=None):
         """Find the first character that is _not_ the specified character."""
@@ -2002,7 +2017,7 @@ class Interpreter:
 
     def __init__(self, output=None, argv=None, prefix=DEFAULT_PREFIX, \
                  pseudo=None, options=None, globals=None, hooks=None):
-        self.interpreter = self # DEPRECATED
+        #self.interpreter = self # DEPRECATED
         # Set up the stream.
         if output is None:
             output = UncloseableFile(sys.__stdout__)
@@ -2169,7 +2184,7 @@ class Interpreter:
 
     def include(self, fileOrFilename, locals=None):
         """Do an include pass on a file or filename."""
-        if type(fileOrFilename) is bytes:
+        if type(fileOrFilename) is str:# str was bytes
             # Either it's a string representing a filename ...
             filename = fileOrFilename
             name = filename
@@ -2186,7 +2201,7 @@ class Interpreter:
         """Do an explicit expansion on a subordinate stream."""
         outFile = io.StringIO()
         stream = Stream(outFile)
-        self.invoke('beforeExpand', string=data, locals=locals)
+        self.invoke('beforeExpand', str=data, locals=locals)
         self.streams.push(stream)
         try:
             self.string(data, '<expand>', locals)
@@ -2200,7 +2215,7 @@ class Interpreter:
     def quote(self, data):
         """Quote the given string so that if it were expanded it would
         evaluate to the original."""
-        self.invoke('beforeQuote', string=data)
+        self.invoke('beforeQuote', str=data)
         scanner = Scanner(self.prefix, data)
         result = []
         i = 0
@@ -2212,14 +2227,14 @@ class Interpreter:
         except TransientParseError:
             pass
         result.append(data[i:])
-        result = string.join(result, '')
+        result = str.join(result, '')
         self.invoke('afterQuote', result=result)
         return result
 
     def escape(self, data, more=''):
         """Escape a string so that nonprintable characters are replaced
         with compatible EmPy expansions."""
-        self.invoke('beforeEscape', string=data, more=more)
+        self.invoke('beforeEscape', str=data, more=more)
         result = []
         for char in data:
             if char < ' ' or char > '~':
@@ -2233,7 +2248,7 @@ class Interpreter:
                 result.append(self.prefix + '\\' + char)
             else:
                 result.append(char)
-        result = string.join(result, '')
+        result = str.join(result, '')
         self.invoke('afterEscape', result=result)
         return result
 
@@ -2309,7 +2324,7 @@ class Interpreter:
                 if self.options.get(BANGPATH_OPT, True) and self.prefix:
                     # Replace a bangpath at the beginning of the first line
                     # with an EmPy comment.
-                    if string.find(line, BANGPATH) == 0:
+                    if str.find(line, BANGPATH) == 0:
                         line = self.prefix + '#' + line[2:]
                 first = False
             if line:
@@ -2388,7 +2403,7 @@ class Interpreter:
         result = []
         stack = [result]
         for garbage in self.ASSIGN_TOKEN_RE.split(name):
-            garbage = string.strip(garbage)
+            garbage = str.strip(garbage)
             if garbage:
                 raise ParseError("unexpected assignment token: '%s'" % garbage)
         tokens = self.ASSIGN_TOKEN_RE.findall(name)
@@ -2446,7 +2461,7 @@ class Interpreter:
             raise ValueError("unpack tuple of wrong size")
         for i in range(len(names)):
             name = names[i]
-            if type(name) is bytes:
+            if type(name) is str:
                 self.atomic(name, values[i], locals)
             else:
                 self.multi(name, values[i], locals)
@@ -2457,7 +2472,7 @@ class Interpreter:
         left = self.tokenize(name)
         # The return value of tokenize can either be a string or a list of
         # (lists of) strings.
-        if type(left) is bytes:
+        if type(left) is str:
             self.atomic(left, value, locals)
         else:
             self.multi(left, value, locals)
@@ -2475,11 +2490,11 @@ class Interpreter:
         self.invoke('beforeClause', catch=catch, locals=locals)
         if catch is None:
             exceptionCode, variable = None, None
-        elif string.find(catch, ',') >= 0:
-            exceptionCode, variable = string.split(string.strip(catch), ',', 1)
-            variable = string.strip(variable)
+        elif str.find(catch, ',') >= 0:
+            exceptionCode, variable = str.split(str.strip(catch), ',', 1)
+            variable = str.strip(variable)
         else:
-            exceptionCode, variable = string.strip(catch), None
+            exceptionCode, variable = str.strip(catch), None
         if not exceptionCode:
             exception = Exception
         else:
@@ -2542,12 +2557,12 @@ class Interpreter:
         # If there are any carriage returns (as opposed to linefeeds/newlines)
         # in the statements code, then remove them.  Even on DOS/Windows
         # platforms, 
-        if string.find(statements, '\r') >= 0:
-            statements = string.replace(statements, '\r', '')
+        if str.find(statements, '\r') >= 0:
+            statements = str.replace(statements, '\r', '')
         # If there are no newlines in the statements code, then strip any
         # leading or trailing whitespace.
-        if string.find(statements, '\n') < 0:
-            statements = string.strip(statements)
+        if str.find(statements, '\n') < 0:
+            statements = str.strip(statements)
         self.push()
         try:
             self.invoke('beforeExecute', \
@@ -2922,7 +2937,7 @@ class Processor:
         self.documents = {}
 
     def scan(self, basename, extensions=DEFAULT_EMPY_EXTENSIONS):
-        if type(extensions) is bytes:
+        if type(extensions) is str:#str was bytes
             extensions = (extensions,)
         def _noCriteria(x):
             return True
@@ -2970,7 +2985,7 @@ class Processor:
         match = self.SIGNIFICATOR_RE.search(line)
         if match:
             key, valueS = match.groups()
-            valueS = string.strip(valueS)
+            valueS = str.strip(valueS)
             if valueS:
                 value = eval(valueS)
             else:
@@ -3092,7 +3107,7 @@ def invoke(args):
     _pauseAtEnd = False
     _relativePath = False
     if _extraArguments is not None:
-        _extraArguments = string.split(_extraArguments)
+        _extraArguments = str.split(_extraArguments)
         args = _extraArguments + args
     # Parse the arguments.
     pairs, remainder = getopt.getopt(args, 'VhHvkp:m:frino:a:buBP:I:D:E:F:', ['version', 'help', 'extended-help', 'verbose', 'null-hook', 'suppress-errors', 'prefix=', 'no-prefix', 'module=', 'flatten', 'raw-errors', 'interactive', 'no-override-stdout', 'binary', 'chunk-size=', 'output=' 'append=', 'preprocess=', 'import=', 'define=', 'execute=', 'execute-file=', 'buffered-output', 'pause-at-end', 'relative-path', 'no-callback-error', 'no-bangpath-processing', 'unicode', 'unicode-encoding=', 'unicode-input-encoding=', 'unicode-output-encoding=', 'unicode-errors=', 'unicode-input-errors=', 'unicode-output-errors='])
@@ -3142,8 +3157,8 @@ def invoke(args):
         elif option in ('-P', '--preprocess'):
             _preprocessing.append(('pre', argument))
         elif option in ('-I', '--import'):
-            for module in string.split(argument, ','):
-                module = string.strip(module)
+            for module in str.split(argument, ','):
+                module = str.strip(module)
                 _preprocessing.append(('import', module))
         elif option in ('-D', '--define'):
             _preprocessing.append(('define', argument))
@@ -3192,7 +3207,7 @@ def invoke(args):
         raise ValueError("-b only makes sense with -o or -a arguments")
     if _prefix == 'None':
         _prefix = None
-    if _prefix and type(_prefix) is bytes and len(_prefix) != 1:
+    if _prefix and type(_prefix) is str and len(_prefix) != 1:#str was bytes
         raise Error("prefix must be single-character string")
     interpreter = Interpreter(output=_output, \
                               argv=remainder, \
@@ -3210,7 +3225,7 @@ def invoke(args):
                 name = thing
             elif which == 'define':
                 command = interpreter.string
-                if string.find(thing, '=') >= 0:
+                if str.find(thing, '=') >= 0:
                     target = '%s{%s}' % (_prefix, thing)
                 else:
                     target = '%s{%s = None}' % (_prefix, thing)
@@ -3222,7 +3237,7 @@ def invoke(args):
             elif which == 'file':
                 command = interpreter.string
                 name = '<file:%d (%s)>' % (i, thing)
-                target = '%s{execfile("""%s""")}' % (_prefix, thing)
+                target = '%s{exec(open("""%s""").read())}' % (_prefix, thing)
             elif which == 'import':
                 command = interpreter.string
                 name = '<import:%d>' % i
